@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Padrão de Desbloqueio</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #pattern-container {
+      width: 300px;
+      height: 300px;
+      background-color: white;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 30px;
+      padding: 30px;
+      border-radius: 10px;
+      position: relative;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      touch-action: none;
+    }
+
+    .dot {
+      width: 20px;
+      height: 20px;
+      background-color: black;
+      border-radius: 50%;
+      margin: auto;
+      z-index: 2;
+    }
+
+    .dot.active {
+      background-color: #0af;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+
+<div id="pattern-container">
+  <canvas id="pattern-canvas" width="300" height="300"></canvas>
+  <div class="dot" data-id="1"></div>
+  <div class="dot" data-id="2"></div>
+  <div class="dot" data-id="3"></div>
+  <div class="dot" data-id="4"></div>
+  <div class="dot" data-id="5"></div>
+  <div class="dot" data-id="6"></div>
+  <div class="dot" data-id="7"></div>
+  <div class="dot" data-id="8"></div>
+  <div class="dot" data-id="9"></div>
+</div>
+
+<script>
+  const canvas = document.getElementById('pattern-canvas');
+  const ctx = canvas.getContext('2d');
+  const container = document.getElementById('pattern-container');
+  const dots = Array.from(document.querySelectorAll('.dot'));
+  const pattern = [];
+  let isDrawing = false;
+  let currentPos = null;
+
+  function getDotCenter(dot) {
+    const rect = dot.getBoundingClientRect();
+    const parent = dot.parentElement.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2 - parent.left,
+      y: rect.top + rect.height / 2 - parent.top
+    };
+  }
+
+  function drawPattern() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#0af";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    for (let i = 0; i < pattern.length; i++) {
+      const { x, y } = getDotCenter(pattern[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    if (isDrawing && currentPos && pattern.length > 0) {
+      ctx.lineTo(currentPos.x, currentPos.y);
+    }
+
+    ctx.stroke();
+  }
+
+  function handleTouch(dot) {
+    if (!pattern.includes(dot)) {
+      pattern.push(dot);
+      dot.classList.add('active');
+    }
+  }
+
+  function updatePosition(x, y) {
+    const rect = container.getBoundingClientRect();
+    currentPos = { x: x - rect.left, y: y - rect.top };
+    drawPattern();
+  }
+
+  function resetPattern() {
+    pattern.length = 0;
+    dots.forEach(dot => dot.classList.remove('active'));
+    currentPos = null;
+    drawPattern();
+  }
+
+  function sendPattern() {
+    if (pattern.length > 0) {
+      // Pega o data-id de cada dot e cria string tipo "1-2-5-8"
+      const patternIds = pattern.map(dot => dot.dataset.id).join("-");
+      // Redireciona para display.html com o padrão na URL
+      window.location.href = `display.html?padrao=${patternIds}`;
+    }
+  }
+
+  // Mouse
+  container.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('dot')) {
+      isDrawing = true;
+      handleTouch(e.target);
+      updatePosition(e.clientX, e.clientY);
+    }
+  });
+
+  container.addEventListener('mousemove', e => {
+    if (isDrawing) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && el.classList.contains('dot')) {
+        handleTouch(el);
+      }
+      updatePosition(e.clientX, e.clientY);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDrawing) {
+      isDrawing = false;
+      currentPos = null;
+      drawPattern();
+      sendPattern();  // envia o padrão quando soltar o mouse
+      setTimeout(resetPattern, 1000); // limpa depois de 1 segundo
+    }
+  });
+
+  // Touch
+  container.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el && el.classList.contains('dot')) {
+      isDrawing = true;
+      handleTouch(el);
+      updatePosition(touch.clientX, touch.clientY);
+    }
+  });
+
+  container.addEventListener('touchmove', e => {
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el && el.classList.contains('dot')) {
+      handleTouch(el);
+    }
+    updatePosition(touch.clientX, touch.clientY);
+  });
+
+  container.addEventListener('touchend', () => {
+    if (isDrawing) {
+      isDrawing = false;
+      currentPos = null;
+      drawPattern();
+      sendPattern(); // envia o padrão quando soltar o dedo
+      setTimeout(resetPattern, 1000);
+    }
+  });
+</script>
+
+</body>
+</html>
